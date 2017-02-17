@@ -1,8 +1,7 @@
-Mainline linux kernel for Orange Pi PC/Plus/One
+Mainline linux kernel for Allwinner(H3)
 -----------------------------------------------
 
-This kernel tree is meant for Orange Pi PC, Orange Pi Plus
-and Orange Pi One.
+This kernel tree is meant for Allwinner devices(H3).
 
 (You can easily port it to other similar H3 based SBCs by modifying the
 appropriate board DTS files. Usually these boards are either like Orange Pi One,
