@@ -225,3 +225,15 @@
 &usbphy {
 	status = "okay";
 };
+
+&de {
+    status = "okay";
+};
+
+&hdmi {
+    status = "okay";
+};
+
+&lcd0 {
+    status = "okay";
+};
