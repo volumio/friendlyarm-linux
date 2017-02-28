@@ -53,6 +53,7 @@
 / {
 	aliases {
 		serial0 = &uart0;
+		lcd0 = &lcd0;
 	};
 
 	chosen {
