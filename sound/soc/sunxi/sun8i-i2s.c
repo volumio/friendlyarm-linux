@@ -17,6 +17,8 @@
 #include <linux/regmap.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
+#include <linux/gpio.h>
+#include <linux/of_gpio.h>
 #include <linux/reset.h>
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
@@ -148,6 +150,9 @@
 #define SOC_H3 1
 #define SOC_H5 2
 
+#define PLL_DAI_CLOCK	0
+#define EXT_DAI_CLOCK	1
+
 struct priv {
 	struct clk *mod_clk;
 	struct clk *bus_clk;
@@ -157,6 +162,9 @@ struct priv {
 	int type;
 	int nchan;
 
+	int clk_src;
+	unsigned long clk_gpios[3];
+	
 	struct snd_dmaengine_dai_dma_data playback_dma_data;
 };
 
@@ -216,7 +224,7 @@ static void sun8i_i2s_init(struct priv *priv)
 
 		regmap_update_bits(priv->regmap, I2S_CTL,
 				   I2S_CTL_H3_LRCKOUT | I2S_CTL_H3_BCLKOUT,
-				   I2S_CTL_H3_LRCKOUT | I2S_CTL_H3_BCLKOUT);
+				   (priv->clk_src == PLL_DAI_CLOCK) ? (I2S_CTL_H3_LRCKOUT | I2S_CTL_H3_BCLKOUT) : 0); /* BCLK and LRCK direction */
 
 		regmap_update_bits(priv->regmap, I2S_CTL,
 				   I2S_CTL_H3_MODE_MSK,
@@ -232,6 +240,42 @@ static void sun8i_i2s_init(struct priv *priv)
 	}
 }
 
+static int sun8i_i2s_set_ext_clock(struct priv *priv, unsigned long rate)
+{
+	int clk_family = 1;
+	u8 div_tb[2] = { 0, 0 };
+
+	switch(rate)
+	{
+		case 44100:
+			clk_family = 0;
+		case 48000:
+			div_tb[0] = 1;
+			div_tb[1] = 1;
+			break;
+		case 88200:
+			clk_family = 0;
+		case 96000:
+			div_tb[0] = 1;
+			div_tb[1] = 0;
+			break;
+		case 176400:
+			clk_family = 0;
+		case 192000:
+			div_tb[0] = 0;
+			div_tb[1] = 0;
+			break;
+		default:
+			return ENOENT;
+	}
+
+	gpio_set_value(priv->clk_gpios[0], clk_family);
+
+	gpio_set_value(priv->clk_gpios[1], div_tb[0]);
+	gpio_set_value(priv->clk_gpios[2], div_tb[1]);
+	return 0;
+}
+
 static int sun8i_i2s_set_clock(struct priv *priv, unsigned long rate)
 {
 	unsigned long freq;
@@ -242,31 +286,42 @@ static int sun8i_i2s_set_clock(struct priv *priv, unsigned long rate)
 
 	DBGOUT("%s: rate = %lu.", __func__, rate);
 
-	/* compute the sys clock rate and divide values */
-	if (rate % 1000 == 0)
-		freq = 24576000;
-	else
-		freq = 22579200;
-	div = freq / 2 / PCM_LRCK_PERIOD / rate;
-	if (priv->type == SOC_A83T)
-		div /= 2;			/* bclk_div==0 => mclk/2 */
-	for (i = 0; i < ARRAY_SIZE(div_tb) - 1; i++)
-		if (div_tb[i] >= div)
-			break;
-
-	ret = clk_set_rate(priv->mod_clk, freq);
-	if (ret) {
-		pr_info("Setting sysclk rate failed %d\n", ret);
-		return ret;
+	if(priv->clk_src == PLL_DAI_CLOCK)
+	{
+		/* compute the sys clock rate and divide values */
+		if (rate % 1000 == 0)
+			freq = 24576000;
+		else
+			freq = 22579200;
+		div = freq / 2 / PCM_LRCK_PERIOD / rate;
+		if (priv->type == SOC_A83T)
+			div /= 2;			/* bclk_div==0 => mclk/2 */
+		for (i = 0; i < ARRAY_SIZE(div_tb) - 1; i++)
+			if (div_tb[i] >= div)
+				break;
+		ret = clk_set_rate(priv->mod_clk, freq);
+			if (ret) {
+				pr_info("Setting sysclk rate failed %d\n", ret);
+				return ret;
+			}
+		/* set the mclk and bclk dividor register */
+		if (priv->type == SOC_A83T) {
+			regmap_write(priv->regmap, I2S_CLKD,
+					I2S_CLKD_A83T_MCLKOEN | I2S_CLKD_MCLKDIV(i));
+		} else {
+			regmap_write(priv->regmap, I2S_CLKD,
+					I2S_CLKD_H3_MCLKOEN | I2S_CLKD_MCLKDIV(1) | I2S_CLKD_BCLKDIV(i + 1));
+		}
 	}
-
-	/* set the mclk and bclk dividor register */
-	if (priv->type == SOC_A83T) {
-		regmap_write(priv->regmap, I2S_CLKD,
-			     I2S_CLKD_A83T_MCLKOEN | I2S_CLKD_MCLKDIV(i));
-	} else {
-		regmap_write(priv->regmap, I2S_CLKD,
-			     I2S_CLKD_H3_MCLKOEN | I2S_CLKD_MCLKDIV(1) | I2S_CLKD_BCLKDIV(i + 1));
+	else
+	{
+		regmap_write(priv->regmap, I2S_CLKD, 0);
+		ret = sun8i_i2s_set_ext_clock(priv, rate);
+		if(ret) {
+			pr_info("Setting extclk rate %lu failed %d\n", rate, ret);
+			return ret;
+		}
+		DBGOUT("%s: external rate = %lu.", __func__, rate);
 	}
 
 	/* format */
@@ -369,6 +424,10 @@ static int sun8i_i2s_startup(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
+	if(priv->clk_src == EXT_DAI_CLOCK) {
+		sun8i_i2s_set_ext_clock(priv, 48000);
+		return 0;
+	}
 	return clk_prepare_enable(priv->mod_clk);
 }
 
@@ -380,7 +439,8 @@ static void sun8i_i2s_shutdown(struct snd_pcm_substream *substream,
 
 	DBGOUT("%s: reached.", __func__);
 
-	clk_disable_unprepare(priv->mod_clk);
+	if(priv->clk_src == PLL_DAI_CLOCK)
+		clk_disable_unprepare(priv->mod_clk);
 
 	regmap_update_bits(priv->regmap, I2S_CTL,
 			   I2S_CTL_GEN,
@@ -457,7 +517,7 @@ static int sun8i_i2s_hw_params(struct snd_pcm_substream *substream,
 					   I2S_FAT0_H3_SR_24 | I2S_FAT0_H3_SW_32);
 			regmap_update_bits(priv->regmap, I2S_FCTL,
 					   I2S_FCTL_TXIM,
-					   0);
+					   I2S_FCTL_TXIM);
 		}
 	}
 
@@ -826,8 +886,7 @@ static struct snd_soc_ops snd_sun8i_dac_ops = {
 static const struct snd_soc_dai_link snd_sun8i_dac_dai = {
 	.name		= "sun8i-i2s-dac",
 	.stream_name	= "sun8i-i2s-dac",
-	.dai_fmt	= SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-			  SND_SOC_DAIFMT_CBS_CFS,
+	.dai_fmt	= SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF,
 	.ops		= &snd_sun8i_dac_ops,
 	.init		= snd_sun8i_dac_init,
 };
@@ -872,12 +931,16 @@ static int sun8i_card_create(struct device *dev, struct priv *priv)
 
 	dai_link->name = snd_sun8i_dac_dai.name;
 	dai_link->stream_name = snd_sun8i_dac_dai.stream_name;
-	dai_link->dai_fmt = snd_sun8i_dac_dai.dai_fmt;
+	dai_link->dai_fmt = snd_sun8i_dac_dai.dai_fmt | 
+		((priv->clk_src == PLL_DAI_CLOCK) ? 
+		SND_SOC_DAIFMT_CBS_CFS : SND_SOC_DAIFMT_CBM_CFM);
 	dai_link->ops = snd_sun8i_dac_dai.ops;
 	dai_link->init = snd_sun8i_dac_dai.init; 
 	dai_link->cpu_of_node = dev->of_node;
 	dai_link->platform_of_node = dev->of_node;
 
+	DBGOUT("%s: dai_fmt=\"%s\"\n", __func__, (dai_link->dai_fmt & SND_SOC_DAIFMT_MASTER_MASK) == SND_SOC_DAIFMT_CBS_CFS ? "codec slave" : "codec master");
+	
 	dai_link->codecs = codec;
 	dai_link->num_codecs = 1;
 
@@ -1027,8 +1090,9 @@ static int sun8i_i2s_dev_probe(struct platform_device *pdev)
 	struct priv *priv;
 	struct resource *res;
 	void __iomem *mmio;
-	int irq, ret;
-
+	int irq, ret, i;
+	const char *clock_source;
+	
 	if (!dev->of_node) {
 		dev_err(dev, "no DT!\n");
 		return -EINVAL;
@@ -1056,17 +1120,46 @@ static int sun8i_i2s_dev_probe(struct platform_device *pdev)
 	priv->type = (long int) of_match_device(sun8i_i2s_of_match, &pdev->dev)->data;
 	DBGOUT("%s: priv->type = %d\n", __func__, priv->type);
 
+	ret = of_property_read_string(dev->of_node, "clock-source", &clock_source);
+	if ((ret == 0) && (strcmp(clock_source, "external") == 0))
+	{
+		priv->clk_src = EXT_DAI_CLOCK;
+
+		for (i = 0; i < ARRAY_SIZE(priv->clk_gpios); i++) {
+			ret = of_get_named_gpio(dev->of_node, "clk-gpios", i);
+			if (ret < 0) {
+				dev_err(dev, "invalid clk-gpios property\n");
+				return ret;
+			}
+			priv->clk_gpios[i] = ret;
+			DBGOUT("%s: priv->clk_gpios[%d] = %d\n", __func__, i, ret);
+		}
+	}
+	else
+		priv->clk_src = PLL_DAI_CLOCK;
+	
 	/* get and enable the clocks */
 	priv->bus_clk = devm_clk_get(dev, "apb");	/* optional */
-	priv->mod_clk = devm_clk_get(dev, "mod");
-	if (IS_ERR(priv->mod_clk)) {
-		dev_err(dev, "Can't get mod clock\n");
-		return PTR_ERR(priv->mod_clk);
+
+	if(priv->clk_src == PLL_DAI_CLOCK)
+	{
+		DBGOUT("%s: priv->clk_src = %s\n", __func__, "PLL_DAI_CLOCK");
+		priv->mod_clk = devm_clk_get(dev, "mod");
+		if (IS_ERR(priv->mod_clk)) {
+			dev_err(dev, "Can't get mod clock\n");
+			return PTR_ERR(priv->mod_clk);
+		}
+		ret = clk_set_rate(priv->mod_clk, 24576000);
+		if (ret) {
+			dev_err(dev, "Can't set rate of i2s clock\n");
+			return ret;
+		}
 	}
-	ret = clk_set_rate(priv->mod_clk, 24576000);
-	if (ret) {
-		dev_err(dev, "Can't set rate of i2s clock\n");
-		return ret;
+	else
+	{
+		DBGOUT("%s: priv->clk_src = %s\n", __func__, "EXT_DAI_CLOCK");
+		priv->mod_clk = NULL;
+		sun8i_i2s_set_ext_clock(priv, 48000);
 	}
 
 	if (priv->type == SOC_A83T)
