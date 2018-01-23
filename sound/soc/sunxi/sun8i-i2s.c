@@ -265,6 +265,10 @@ static int sun8i_i2s_set_ext_clock(struct priv *priv, unsigned long rate)
 			div_tb[0] = 0;
 			div_tb[1] = 0;
 			break;
+		case 384000:
+			div_tb[0] = 0;
+			div_tb[1] = 1;
+			break;
 		default:
 			return ENOENT;
 	}
@@ -799,9 +803,9 @@ static struct snd_soc_dai_driver sun8i_i2s_dai = {
 		.stream_name = "Playback",
 		.channels_min = 1,
 		.channels_max = 8,
-		.rates = SNDRV_PCM_RATE_8000_192000 | SNDRV_PCM_RATE_KNOT,
+		.rates = SNDRV_PCM_RATE_8000_384000 | SNDRV_PCM_RATE_KNOT,
 		.rate_min = 8000,
-		.rate_max = 192000,
+		.rate_max = 384000,
 		.formats = I2S_FORMATS,
 	},
 	.ops = &sun8i_i2s_dai_ops,
@@ -819,9 +823,9 @@ static const struct snd_pcm_hardware sun8i_i2s_pcm_hardware = {
 		SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID |
 		SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_RESUME,
 	.formats = I2S_FORMATS,
-	.rates = SNDRV_PCM_RATE_8000_192000 | SNDRV_PCM_RATE_KNOT,
+	.rates = SNDRV_PCM_RATE_8000_384000 | SNDRV_PCM_RATE_KNOT,
 	.rate_min = 8000,
-	.rate_max = 192000,
+	.rate_max = 384000,
 	.channels_min = 1,
 	.channels_max = 8,
 	.buffer_bytes_max = 1024 * 1024,
