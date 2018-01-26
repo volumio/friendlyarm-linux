@@ -393,7 +393,7 @@
     status = "okay";
     pinctrl-names = "default";
     pinctrl-0 = <&spi0_pins &spi0_cs_pins>;
-    cs-gpios = <&pio 2 3 GPIO_ACTIVE_HIGH>, <&pio 0 6 GPIO_ACTIVE_HIGH>;
+    cs-gpios = <&pio 2 3 GPIO_ACTIVE_HIGH>;
 
     spidev0: spi@0 {
         compatible = "nanopi,spidev";
@@ -436,7 +436,7 @@
     pitft_ts: pitft-ts@1 {
         compatible = "ti,ads7846";
         reg = <1>;
-        status = "okay";
+        status = "disabled";
 
         spi-max-frequency = <2000000>;
         interrupt-parent = <&pio>;
