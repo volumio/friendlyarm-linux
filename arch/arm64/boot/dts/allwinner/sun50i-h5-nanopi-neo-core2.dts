@@ -313,7 +313,7 @@
     pinctrl-0 = <&mmc1_pins_a>;
     vmmc-supply = <&reg_vcc3v3>;
     vqmmc-supply = <&reg_vcc3v3>;
-    mmc-pwrseq = <&wifi_pwrseq>;
+    /* mmc-pwrseq = <&wifi_pwrseq>; */
     bus-width = <4>;
     non-removable;
     status = "okay";
