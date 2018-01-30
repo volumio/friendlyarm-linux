@@ -94,6 +94,12 @@
 			gpios = <&r_pio 0 10 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 		};
+
+		pwr_en {
+			label = "nanopi:none:pwr_en";
+			gpios = <&pio 0 0 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
 	};
 
 	r_gpio_keys {
@@ -241,11 +247,11 @@
 
 &pio {
 	leds_npi: led_pins@0 {
-		pins = "PA10";
+		pins = "PA10", "PA0";
 		function = "gpio_out";
 	};
     spi0_cs_pins: spi0_cs_pins {
-        pins = "PC3", "PA6";
+        pins = "PC3";
         function = "gpio_out";
     };
 };
@@ -288,7 +294,7 @@
     status = "okay";
     pinctrl-names = "default";
     pinctrl-0 = <&spi0_pins &spi0_cs_pins>;
-    cs-gpios = <&pio 2 3 GPIO_ACTIVE_HIGH>, <&pio 0 6 GPIO_ACTIVE_HIGH>;
+    cs-gpios = <&pio 2 3 GPIO_ACTIVE_HIGH>;
 
     spidev0: spi@0 {
         compatible = "nanopi,spidev";
@@ -331,7 +337,7 @@
     pitft_ts: pitft-ts@1 {
         compatible = "ti,ads7846";
         reg = <1>;
-        status = "okay";
+        status = "disabled";
 
         spi-max-frequency = <2000000>;
         interrupt-parent = <&pio>;
