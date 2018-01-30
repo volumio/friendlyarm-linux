@@ -102,6 +102,12 @@
 			gpios = <&r_pio 0 10 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 		};
+
+		pwr_en {
+			label = "nanopi:none:pwr_en";
+			gpios = <&pio 0 0 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
 	};
 
 	r-gpio-keys {
@@ -307,7 +313,7 @@
 
 &pio {
 	leds_npi: led_pins@0 {
-		pins = "PA10";
+		pins = "PA10", "PA0";
 		function = "gpio_out";
 	};
 	gmac_power_pin_nanopi: gmac_power_pin@0 {
@@ -441,7 +447,7 @@
         spi-max-frequency = <2000000>;
         interrupt-parent = <&pio>;
         interrupts = <6 9 IRQ_TYPE_EDGE_FALLING>;   /* PG9 / EINT9 */
-        pendown-gpio = <&pio 6 9 GPIO_ACTIVE_LOW>;
+        pendown-gpio = <&pio 6 9 GPIO_ACTIVE_LOW>; 
         ti,swap-xy;
         ti,vref-delay-usecs = <1000>;
         ti,x-min = /bits/ 16 <100>;
