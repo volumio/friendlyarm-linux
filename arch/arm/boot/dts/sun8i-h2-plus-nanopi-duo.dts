@@ -76,14 +76,6 @@
     status = "okay";
 };
 
-&i2c0 {
-    status = "okay";
-    rtc@68 {
-                compatible = "dallas,ds1307";
-                reg = <0x68>;
-        };
-};
-
 &mmc1 {
     pinctrl-names = "default";
     pinctrl-0 = <&mmc1_pins_a>;
@@ -118,11 +110,18 @@
     };
 };
 
-&spi1 {
+&reg_usb0_vbus {
+    gpio = <&r_pio 0 2 GPIO_ACTIVE_HIGH>; /* PL2 */
     status = "okay";
-    spidev1: spi@1 {
-        compatible = "nanopi,spidev";
-        reg = <0>;
-        spi-max-frequency = <10000000>;
-    };
+};
+
+&usb_otg {
+    dr_mode = "otg";
+    status = "okay";
+};
+
+&usbphy {
+    usb0_id_det-gpios = <&pio 6 12 GPIO_ACTIVE_HIGH>; /* PG12 */
+    usb0_vbus-supply = <&reg_usb0_vbus>;
+    status = "okay";
 };

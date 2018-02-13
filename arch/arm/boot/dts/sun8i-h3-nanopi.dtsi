@@ -65,19 +65,29 @@
 		mmc0 = &mmc0;
 		mmc2 = &mmc2;
 		ethernet0 = &emac;
-		lcd0 = &lcd0;
 		i2s0 = &i2s0;
 		pcm5102a = &pcm5102a;
-        spidev0 = &spidev0;
-        spiflash = &spiflash;
-        pitft = &pitft;
-        pitft_ts = &pitft_ts;
+		spidev0 = &spidev0;
+		spiflash = &spiflash;
+		pitft = &pitft;
+		pitft_ts = &pitft_ts;
 	};
 
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
 
+    connector {
+        compatible = "hdmi-connector";
+        type = "a";
+
+        port {
+            hdmi_con_in: endpoint {
+                remote-endpoint = <&hdmi_out_con>;
+            };
+        };
+    };
+    
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
@@ -286,6 +296,34 @@
 	status = "okay";
 };
 
+&uart2 {
+    pinctrl-names = "default";
+    pinctrl-0 = <&uart2_pins>;
+    status = "okay";
+};
+
+&uart3 {
+    pinctrl-names = "default";
+    pinctrl-0 = <&uart3_pins>, <&uart3_rts_cts_pins>;
+    status = "okay";
+};
+
+&i2c0 {
+    status = "okay";
+    rtc@68 {
+        compatible = "dallas,ds1307";
+        reg = <0x68>;
+        };
+};
+
+&i2c1 {
+    status = "okay";
+};
+
+&i2c2 {
+    status = "okay";
+};
+
 &spi0 {
     /* needed to avoid dtc warning */
     #address-cells = <1>;
@@ -299,7 +337,7 @@
     spidev0: spi@0 {
         compatible = "nanopi,spidev";
         reg = <0>;
-        status = "disabled";
+        status = "okay";
 
         spi-max-frequency = <10000000>;
     };
@@ -323,7 +361,7 @@
     pitft: pitft@0{
         compatible = "sitronix,st7789v";
         reg = <0>;
-        status = "okay";
+        status = "disabled";
 
         spi-max-frequency = <50000000>;
         rotate = <90>;
@@ -361,6 +399,16 @@
     };
 };
 
+&spi1 {
+    // against uart3_rts_cts_pins, so disable
+    status = "disable";
+    spidev1: spi@1 {
+        compatible = "nanopi,spidev";
+        reg = <0>;
+        spi-max-frequency = <10000000>;
+    };
+};
+
 &usbphy {
 	status = "okay";
 };
@@ -373,8 +421,31 @@
     status = "okay";
 };
 
-&lcd0 {
+&hdmi_out {
+    hdmi_out_con: endpoint {
+        remote-endpoint = <&hdmi_con_in>;
+    };
+};
+
+&sound_hdmi {
     status = "okay";
+};
+
+&tcon0 {
+    status = "okay";
+};
+
+&mixer0 {
+    status = "okay";
+};
+
+&i2s0 {
+    sound-dai = <&pcm5102a>;
+    status = "disabled";
+};
+
+&i2s2 {
+	status = "okay";
 };
 
 &emac {
