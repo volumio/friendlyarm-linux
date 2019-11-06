@@ -159,7 +159,7 @@
 	pcm5102a: pcm5102a-codec {
         #sound-dai-cells = <0>;
         compatible = "ti,pcm5102a";
-        status = "disabled";
+        status = "okay";
     };
 };
 
@@ -224,7 +224,7 @@
 		"Line Out", "LINEOUT",
 		"MIC1", "Mic",
 		"Mic",  "MBIAS";
-	status = "okay";
+	status = "disabled";
 };
 
 &de {
@@ -374,7 +374,7 @@
 
 &i2c1 {
     /* no I2C1 for I2S0 */
-    status = "okay";
+    status = "disabled";
 };
 
 &i2c2 {
@@ -432,7 +432,7 @@
     pitft_ts: pitft-ts@1 {
         compatible = "ti,ads7846";
         reg = <1>;
-        status = "okay";
+        status = "disabled";
 
         spi-max-frequency = <2000000>;
         interrupt-parent = <&pio>;
@@ -463,6 +463,8 @@
 };
 
 &i2s0 {
+    sound-dai = <&pcm5102a>;
+    clk_always_on = <1>;
 	pinctrl-0 = <&i2s0_pins>;
-	status = "disabled";
+	status = "okay";
 };
